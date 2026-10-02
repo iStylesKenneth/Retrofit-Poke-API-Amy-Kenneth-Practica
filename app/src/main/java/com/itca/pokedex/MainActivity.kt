@@ -4,17 +4,25 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,20 +45,38 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             PokedexTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    PokemonScreen(modifier = Modifier.padding(innerPadding))
-                }
+                PokedexApp()
             }
         }
     }
 }
 
 @Composable
-fun PokemonScreen(modifier: Modifier = Modifier) {
+fun PokedexApp() {
+    // Estado para saber qué Pokémon ha sido seleccionado (si es null, muestra la lista)
+    var selectedPokemonName by remember { mutableStateOf<String?>(null) }
+
+    if (selectedPokemonName == null) {
+        PokemonListScreen(
+            onPokemonClick = { pokemonName ->
+                selectedPokemonName = pokemonName
+            }
+        )
+    } else {
+        PokemonDetailScreen(
+            pokemonName = selectedPokemonName!!,
+            onBackClick = {
+                selectedPokemonName = null
+            }
+        )
+    }
+}
+
+@Composable
+fun PokemonListScreen(onPokemonClick: (String) -> Unit) {
     var pokemonList by remember { mutableStateOf(emptyList<PokemonItem>()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    // Cargar los datos al iniciar la pantalla
     LaunchedEffect(Unit) {
         try {
             val response = withContext(Dispatchers.IO) {
@@ -58,32 +84,81 @@ fun PokemonScreen(modifier: Modifier = Modifier) {
             }
             pokemonList = response.results
         } catch (_: Exception) {
-            // Manejo de errores silencioso para la prueba
+            // Error silencioso
         } finally {
             isLoading = false
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        if (isLoading) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-        } else {
-            LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                items(pokemonList) { pokemon ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = pokemon.name.replaceFirstChar { it.uppercase() },
-                            modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontSize = 18.sp
-                        )
+    Scaffold(
+        topBar = {
+            @OptIn(ExperimentalMaterial3Api::class)
+            TopAppBar(
+                title = { Text("Pokédex - Lista") }
+            )
+        }
+    ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                    items(pokemonList) { pokemon ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            onClick = {
+                                onPokemonClick(pokemon.name)
+                            }
+                        ) {
+                            Text(
+                                text = pokemon.name.replaceFirstChar { it.uppercase() },
+                                modifier = Modifier.padding(16.dp),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontSize = 18.sp
+                            )
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun PokemonDetailScreen(pokemonName: String, onBackClick: () -> Unit) {
+    Scaffold(
+        topBar = {
+            @OptIn(ExperimentalMaterial3Api::class)
+            TopAppBar(
+                title = { Text("Detalle del Pokémon") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Regresar")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = pokemonName.replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.headlineLarge,
+                fontSize = 32.sp
+            )
+            Text(
+                text = "¡Aquí verás los detalles y estadísticas de este Pokémon muy pronto!",
+                modifier = Modifier.padding(top = 16.dp),
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
     }
 }
