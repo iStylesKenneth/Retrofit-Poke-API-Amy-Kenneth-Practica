@@ -4,36 +4,20 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.itca.pokedex.api.RetrofitClient
+import com.itca.pokedex.model.PokemonDetail
 import com.itca.pokedex.model.PokemonItem
 import com.itca.pokedex.ui.theme.PokedexTheme
 import kotlinx.coroutines.Dispatchers
@@ -53,7 +37,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun PokedexApp() {
-    // Estado para saber qué Pokémon ha sido seleccionado (si es null, muestra la lista)
     var selectedPokemonName by remember { mutableStateOf<String?>(null) }
 
     if (selectedPokemonName == null) {
@@ -84,7 +67,6 @@ fun PokemonListScreen(onPokemonClick: (String) -> Unit) {
             }
             pokemonList = response.results
         } catch (_: Exception) {
-            // Error silencioso
         } finally {
             isLoading = false
         }
@@ -93,9 +75,7 @@ fun PokemonListScreen(onPokemonClick: (String) -> Unit) {
     Scaffold(
         topBar = {
             @OptIn(ExperimentalMaterial3Api::class)
-            TopAppBar(
-                title = { Text("Pokédex - Lista") }
-            )
+            TopAppBar(title = { Text("Pokédex - Lista") })
         }
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
@@ -108,9 +88,7 @@ fun PokemonListScreen(onPokemonClick: (String) -> Unit) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp),
-                            onClick = {
-                                onPokemonClick(pokemon.name)
-                            }
+                            onClick = { onPokemonClick(pokemon.name) }
                         ) {
                             Text(
                                 text = pokemon.name.replaceFirstChar { it.uppercase() },
@@ -128,11 +106,26 @@ fun PokemonListScreen(onPokemonClick: (String) -> Unit) {
 
 @Composable
 fun PokemonDetailScreen(pokemonName: String, onBackClick: () -> Unit) {
+    var pokemonDetail by remember { mutableStateOf<PokemonDetail?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(pokemonName) {
+        try {
+            val detail = withContext(Dispatchers.IO) {
+                RetrofitClient.apiService.getPokemonDetail(pokemonName)
+            }
+            pokemonDetail = detail
+        } catch (_: Exception) {
+        } finally {
+            isLoading = false
+        }
+    }
+
     Scaffold(
         topBar = {
             @OptIn(ExperimentalMaterial3Api::class)
             TopAppBar(
-                title = { Text("Detalle del Pokémon") },
+                title = { Text("Detalle de Pokémon") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Regresar")
@@ -141,24 +134,41 @@ fun PokemonDetailScreen(pokemonName: String, onBackClick: () -> Unit) {
             )
         }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = pokemonName.replaceFirstChar { it.uppercase() },
-                style = MaterialTheme.typography.headlineLarge,
-                fontSize = 32.sp
-            )
-            Text(
-                text = "¡Aquí verás los detalles y estadísticas de este Pokémon muy pronto!",
-                modifier = Modifier.padding(top = 16.dp),
-                style = MaterialTheme.typography.bodyLarge
-            )
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else if (pokemonDetail != null) {
+                val detail = pokemonDetail!!
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    AsyncImage(
+                        model = detail.sprites.frontDefault,
+                        contentDescription = detail.name,
+                        modifier = Modifier.size(180.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = detail.name.replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontSize = 32.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Altura: ${detail.height} | Peso: ${detail.weight}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontSize = 18.sp
+                    )
+                }
+            }
         }
     }
 }
