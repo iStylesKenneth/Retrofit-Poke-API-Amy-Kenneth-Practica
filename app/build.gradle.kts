@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.coil.compose)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
 
     // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
